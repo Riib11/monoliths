@@ -1,6 +1,6 @@
 module STLC where
 
-open import Relation.Binary.PropositionalEquality hiding (subst; [_])
+open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Relation.Nullary
 open import Data.Nat as Nat
 open import Data.Nat.Properties
@@ -8,6 +8,11 @@ open import Data.Fin as Fin
 open import Data.Product as Product
 open import Data.Sum as Sum
 open import Data.Maybe as Maybe
+
+
+data Result {A : Set} (P : A → Set) (a : A) : Set where
+  terminated : P a → Result P a
+  out-of-gas : Result P a
 
 
 module Syntax where
@@ -84,7 +89,7 @@ module Substitution where
     σ (s x) = ` x
 
 
-module Reduction where
+module Evaluation where
   open Syntax
   open Substitution
 
@@ -127,14 +132,14 @@ module Reduction where
   data _⇝_ : ∀ {Γ α} → (Γ ⊢ α) → (Γ ⊢ α) → Set where
 
     end : ∀ {Γ α} {a : Γ ⊢ α} →
-      ---------------------------
+      -------
       a ⇝ a
 
     step : ∀ {Γ α} {a a′ a″ : Γ ⊢ α} →
-      a ↝ a′ →
+      a  ↝ a′ →
       a′ ⇝ a″ →
-      ----------
-      a ⇝ a″
+      -----------
+      a  ⇝ a″
 
 
   data Progress {α} (a : ∅ ⊢ α) : Set where
@@ -151,11 +156,7 @@ module Reduction where
   progress (f `∙ a)            | reduces (f′ , f↝f′) = reduces (f′ `∙ a , appₗ f↝f′)
 
 
-  data Evaluation {Γ α} (a : Γ ⊢ α) : Set where
-    terminated : Σ[ a′ ∈ Γ ⊢ α ] (a ⇝ a′ × a′ ⇓) → Evaluation a
-    out-of-gas : Evaluation a
-
-  evaluate : ∀ {α} (a : ∅ ⊢ α) → ℕ → Evaluation a
+  evaluate : ∀ {α} (a : ∅ ⊢ α) → ℕ → Result (λ a → Σ[ a′ ∈ ∅ ⊢ α ] (a ⇝ a′ × a′ ⇓)) a
   evaluate _ zero       = out-of-gas
   evaluate a (suc g) with progress a
   evaluate a (suc g)    | evaluated a⇓ = terminated (a , end , a⇓)
@@ -166,7 +167,6 @@ module Reduction where
 
 module Examples where
   open Syntax
-  open Reduction
   open Evaluation
 
   -- beta-reduction
